@@ -1,0 +1,11 @@
+# Netlify redirects for SPA routing
+/*    /index.html   200
+
+# Redirect old URLs to new ones (if any)
+/calculator    /    301
+/tdee-calculator    /    301
+
+# Force HTTPS
+http://calculatortdee.app/*    https://calculatortdee.app/:splat    301!
+http://www.calculatortdee.app/*    https://calculatortdee.app/:splat    301!
+https://www.calculatortdee.app/*    https://calculatortdee.app/:splat    301!
