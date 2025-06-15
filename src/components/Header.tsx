@@ -14,6 +14,7 @@ const Header: React.FC<HeaderProps> = ({ activeSection, currentPage, setCurrentP
     { id: 'home', label: 'Home', isPage: true, slug: '' },
     { id: 'calculator', label: 'Calculator', isPage: false, slug: 'calculator' },
     { id: 'features', label: 'Features', isPage: false, slug: 'features' },
+    { id: 'comparison', label: 'Compare', isPage: false, slug: 'comparison' },
     { id: 'about-us', label: 'About Us', isPage: true, slug: 'about-us' },
     { id: 'contact', label: 'Contact', isPage: true, slug: 'contact' }
   ], []);

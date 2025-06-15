@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calculator as CalcIcon, Download, RotateCcw, TrendingUp, Activity, Heart, Zap, Target, Brain, AlertCircle, CheckCircle, Info, FileText, Image, FileDown } from 'lucide-react';
+import { Calculator as CalcIcon, Download, RotateCcw, TrendingUp, Activity, Heart, Zap, Target, Brain, AlertCircle, CheckCircle, Info, FileText, Image, FileDown, Sparkles } from 'lucide-react';
 import { generatePDFReport, generateJPGReport, exportJSON, ExportData } from '../utils/exportUtils';
+import AdvancedMetrics from './AdvancedMetrics';
+import BodyCompositionAnalyzer from './BodyCompositionAnalyzer';
+import NutritionTiming from './NutritionTiming';
+import ProgressTracker from './ProgressTracker';
 
 interface CalculatorData {
   age: number;
@@ -15,6 +19,13 @@ interface CalculatorData {
   sleepHours: number;
   stressLevel: 'low' | 'moderate' | 'high';
   waterIntake: number;
+  // New advanced fields
+  workoutFrequency: number;
+  cardioMinutes: number;
+  supplementation: string[];
+  medicalConditions: string[];
+  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+  primaryGoalTimeframe: '4weeks' | '8weeks' | '12weeks' | '24weeks';
 }
 
 interface Results {
@@ -33,6 +44,12 @@ interface Results {
   hydrationNeeds: number;
   sleepMetabolismImpact: number;
   stressMetabolismImpact: number;
+  // New advanced results
+  metabolicFlexibilityScore: number;
+  thermalEffectFood: number;
+  adaptiveThermogenesis: number;
+  optimalMealTiming: any[];
+  supplementRecommendations: any[];
 }
 
 const Calculator: React.FC = () => {
@@ -47,11 +64,18 @@ const Calculator: React.FC = () => {
     workoutIntensity: 'moderate',
     sleepHours: 7,
     stressLevel: 'moderate',
-    waterIntake: 2.5
+    waterIntake: 2.5,
+    workoutFrequency: 4,
+    cardioMinutes: 150,
+    supplementation: [],
+    medicalConditions: [],
+    experienceLevel: 'intermediate',
+    primaryGoalTimeframe: '12weeks'
   });
 
   const [results, setResults] = useState<Results | null>(null);
-  const [activeTab, setActiveTab] = useState<'basic' | 'advanced' | 'lifestyle'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'advanced' | 'lifestyle' | 'goals'>('basic');
+  const [activeResultsTab, setActiveResultsTab] = useState<'overview' | 'composition' | 'timing' | 'progress' | 'insights'>('overview');
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   const activityLevels = useMemo(() => [
@@ -68,6 +92,16 @@ const Calculator: React.FC = () => {
     { value: 'high', label: 'High Intensity', multiplier: 1.05, description: 'HIIT, heavy lifting' },
     { value: 'extreme', label: 'Extreme', multiplier: 1.1, description: 'Professional athlete level' }
   ], []);
+
+  const supplementOptions = [
+    'Whey Protein', 'Creatine', 'Multivitamin', 'Omega-3', 'Vitamin D3',
+    'Magnesium', 'Caffeine', 'L-Carnitine', 'Green Tea Extract', 'Probiotics'
+  ];
+
+  const medicalConditionOptions = [
+    'Diabetes', 'Thyroid Disorder', 'PCOS', 'Metabolic Syndrome', 'Heart Disease',
+    'High Blood Pressure', 'Insulin Resistance', 'Sleep Apnea', 'None'
+  ];
 
   const calculateBMR = useCallback(() => {
     const { age, gender, weight, height, formula, bodyFat } = data;
@@ -96,33 +130,41 @@ const Calculator: React.FC = () => {
     const workoutMultiplier = workoutIntensities.find(w => w.value === data.workoutIntensity)?.multiplier || 1.0;
     const baseTdee = bmr * data.activityLevel * workoutMultiplier;
     
+    // Advanced lifestyle factors
     const sleepImpact = data.sleepHours < 7 ? 0.95 : data.sleepHours > 9 ? 0.98 : 1.0;
     const stressMultiplier = data.stressLevel === 'high' ? 1.05 : data.stressLevel === 'low' ? 0.98 : 1.0;
     
-    const tdee = baseTdee * sleepImpact * stressMultiplier;
+    // Experience level impact
+    const experienceMultiplier = data.experienceLevel === 'beginner' ? 1.02 : 
+                                data.experienceLevel === 'advanced' ? 0.98 : 1.0;
+    
+    const tdee = baseTdee * sleepImpact * stressMultiplier * experienceMultiplier;
     
     let goalCalories = tdee;
     let weeklyWeightChange = 0;
     let calorieDeficit, calorieSurplus;
     
     if (data.goal === 'lose') {
-      calorieDeficit = 500;
+      const deficitSize = data.experienceLevel === 'beginner' ? 400 : 500;
+      calorieDeficit = deficitSize;
       goalCalories = tdee - calorieDeficit;
       weeklyWeightChange = -0.5;
     } else if (data.goal === 'gain') {
-      calorieSurplus = 500;
+      const surplusSize = data.experienceLevel === 'beginner' ? 300 : 500;
+      calorieSurplus = surplusSize;
       goalCalories = tdee + calorieSurplus;
-      weeklyWeightChange = 0.5;
+      weeklyWeightChange = data.experienceLevel === 'beginner' ? 0.3 : 0.5;
     }
 
+    // Advanced macro calculations based on goal and experience
     let proteinRatio, carbRatio, fatRatio;
     if (data.goal === 'lose') {
-      proteinRatio = 0.35;
-      carbRatio = 0.35;
-      fatRatio = 0.30;
+      proteinRatio = data.experienceLevel === 'advanced' ? 0.40 : 0.35;
+      carbRatio = 0.30;
+      fatRatio = data.experienceLevel === 'advanced' ? 0.30 : 0.35;
     } else if (data.goal === 'gain') {
       proteinRatio = 0.25;
-      carbRatio = 0.50;
+      carbRatio = data.experienceLevel === 'beginner' ? 0.55 : 0.50;
       fatRatio = 0.25;
     } else {
       proteinRatio = 0.25;
@@ -147,6 +189,11 @@ const Calculator: React.FC = () => {
     const activityHydration = data.activityLevel > 1.5 ? 0.5 : 0;
     const hydrationNeeds = baseHydration + activityHydration;
 
+    // Advanced metrics
+    const metabolicFlexibilityScore = calculateMetabolicFlexibility();
+    const thermalEffectFood = Math.round(tdee * 0.1);
+    const adaptiveThermogenesis = calculateAdaptiveThermogenesis();
+
     setResults({
       bmr: Math.round(bmr),
       tdee: Math.round(tdee),
@@ -162,12 +209,38 @@ const Calculator: React.FC = () => {
       weeklyWeightChange,
       hydrationNeeds: Math.round(hydrationNeeds * 10) / 10,
       sleepMetabolismImpact: Math.round((sleepImpact - 1) * 100),
-      stressMetabolismImpact: Math.round((stressMultiplier - 1) * 100)
+      stressMetabolismImpact: Math.round((stressMultiplier - 1) * 100),
+      metabolicFlexibilityScore,
+      thermalEffectFood,
+      adaptiveThermogenesis,
+      optimalMealTiming: [],
+      supplementRecommendations: []
     });
   }, [data, calculateBMR, workoutIntensities]);
 
+  const calculateMetabolicFlexibility = () => {
+    let score = 70;
+    if (data.sleepHours >= 7 && data.sleepHours <= 9) score += 10;
+    if (data.stressLevel === 'low') score += 10;
+    if (data.activityLevel >= 1.55) score += 10;
+    if (data.workoutIntensity === 'high' || data.workoutIntensity === 'extreme') score += 5;
+    if (data.experienceLevel === 'advanced') score += 5;
+    return Math.max(0, Math.min(100, score));
+  };
+
+  const calculateAdaptiveThermogenesis = () => {
+    if (data.goal === 'lose') {
+      let adaptation = 5;
+      if (data.activityLevel < 1.375) adaptation += 3;
+      if (data.stressLevel === 'high') adaptation += 2;
+      if (data.sleepHours < 7) adaptation += 2;
+      if (data.experienceLevel === 'advanced') adaptation -= 2;
+      return Math.min(15, adaptation);
+    }
+    return 0;
+  };
+
   useEffect(() => {
-    // Use requestAnimationFrame for better performance
     const timer = requestAnimationFrame(() => {
       calculateResults();
     });
@@ -190,7 +263,13 @@ const Calculator: React.FC = () => {
       workoutIntensity: 'moderate',
       sleepHours: 7,
       stressLevel: 'moderate',
-      waterIntake: 2.5
+      waterIntake: 2.5,
+      workoutFrequency: 4,
+      cardioMinutes: 150,
+      supplementation: [],
+      medicalConditions: [],
+      experienceLevel: 'intermediate',
+      primaryGoalTimeframe: '12weeks'
     });
   }, []);
 
@@ -223,6 +302,19 @@ const Calculator: React.FC = () => {
 
     if (data.activityLevel < 1.375) {
       recommendations.push("Incorporate more physical activity into your daily routine for better health and increased calorie expenditure.");
+    }
+
+    // Advanced recommendations
+    if (results.metabolicFlexibilityScore < 70) {
+      recommendations.push("Focus on improving metabolic flexibility through intermittent fasting and varied exercise modalities.");
+    }
+
+    if (data.experienceLevel === 'beginner') {
+      recommendations.push("Start with basic compound movements and gradually increase training complexity over time.");
+    }
+
+    if (data.medicalConditions.length > 0 && !data.medicalConditions.includes('None')) {
+      recommendations.push("Consult with healthcare professionals to optimize your nutrition plan for your specific medical conditions.");
     }
     
     return recommendations;
@@ -279,6 +371,21 @@ const Calculator: React.FC = () => {
     </button>
   ), [activeTab]);
 
+  const ResultsTabButton = useCallback(({ tab, label, icon: Icon }: { tab: string, label: string, icon: any }) => (
+    <button
+      onClick={() => setActiveResultsTab(tab as any)}
+      className={`flex items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg transition-all duration-300 text-xs sm:text-sm will-change-transform ${
+        activeResultsTab === tab
+          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
+          : 'bg-white/10 text-gray-300 hover:bg-white/20'
+      }`}
+      aria-pressed={activeResultsTab === tab}
+    >
+      <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+      <span className="font-medium hidden lg:inline">{label}</span>
+    </button>
+  ), [activeResultsTab]);
+
   const Tooltip = useCallback(({ content, children }: { content: string, children: React.ReactNode }) => (
     <div className="relative group">
       {children}
@@ -294,14 +401,14 @@ const Calculator: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8 sm:mb-12">
           <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-full px-4 sm:px-6 py-2 mb-4 sm:mb-6">
-            <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400 flex-shrink-0" />
-            <span className="text-xs sm:text-sm text-blue-300 font-medium">Advanced AI-Powered Analysis</span>
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400 flex-shrink-0" />
+            <span className="text-xs sm:text-sm text-blue-300 font-medium">Next-Generation AI Analysis</span>
           </div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4">
             Professional TDEE Calculator
           </h2>
           <p className="text-base sm:text-lg lg:text-xl text-gray-300 max-w-2xl mx-auto px-4">
-            Get comprehensive metabolic analysis with lifestyle factors, advanced metrics, and personalized recommendations
+            Advanced metabolic analysis with AI-powered insights, body composition tracking, and personalized nutrition timing
           </p>
         </div>
 
@@ -325,6 +432,7 @@ const Calculator: React.FC = () => {
               <TabButton tab="basic" label="Basic Info" icon={CalcIcon} />
               <TabButton tab="advanced" label="Advanced" icon={TrendingUp} />
               <TabButton tab="lifestyle" label="Lifestyle" icon={Heart} />
+              <TabButton tab="goals" label="Goals" icon={Target} />
             </div>
 
             <div className="space-y-4 sm:space-y-6">
@@ -362,9 +470,7 @@ const Calculator: React.FC = () => {
                       className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
                       min="15"
                       max="100"
-                      aria-describedby="age-help"
                     />
-                    <div id="age-help" className="sr-only">Enter your age in years, between 15 and 100</div>
                   </div>
 
                   {/* Weight */}
@@ -379,9 +485,7 @@ const Calculator: React.FC = () => {
                       min="30"
                       max="300"
                       step="0.1"
-                      aria-describedby="weight-help"
                     />
-                    <div id="weight-help" className="sr-only">Enter your weight in kilograms</div>
                   </div>
 
                   {/* Height */}
@@ -395,37 +499,32 @@ const Calculator: React.FC = () => {
                       className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
                       min="120"
                       max="250"
-                      aria-describedby="height-help"
                     />
-                    <div id="height-help" className="sr-only">Enter your height in centimeters</div>
                   </div>
 
-                  {/* Goal */}
+                  {/* Experience Level */}
                   <div className="space-y-3">
-                    <label className="block text-sm font-medium text-gray-300">Primary Goal</label>
+                    <label className="block text-sm font-medium text-gray-300">Experience Level</label>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {[
-                        { value: 'lose', label: 'Lose Weight', icon: TrendingUp },
-                        { value: 'maintain', label: 'Maintain', icon: Target },
-                        { value: 'gain', label: 'Gain Weight', icon: Activity }
-                      ].map((goal) => {
-                        const Icon = goal.icon;
-                        return (
-                          <button
-                            key={goal.value}
-                            onClick={() => handleInputChange('goal', goal.value)}
-                            className={`py-3 px-3 rounded-xl text-xs sm:text-sm transition-all duration-300 flex flex-col items-center space-y-1 will-change-transform ${
-                              data.goal === goal.value
-                                ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg transform scale-105'
-                                : 'bg-white/10 text-gray-300 hover:bg-white/20 hover:scale-105'
-                            }`}
-                            aria-pressed={data.goal === goal.value}
-                          >
-                            <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                            <span>{goal.label}</span>
-                          </button>
-                        );
-                      })}
+                        { value: 'beginner', label: 'Beginner', description: '< 1 year' },
+                        { value: 'intermediate', label: 'Intermediate', description: '1-3 years' },
+                        { value: 'advanced', label: 'Advanced', description: '3+ years' }
+                      ].map((level) => (
+                        <button
+                          key={level.value}
+                          onClick={() => handleInputChange('experienceLevel', level.value)}
+                          className={`py-3 px-3 rounded-xl text-xs sm:text-sm transition-all duration-300 will-change-transform ${
+                            data.experienceLevel === level.value
+                              ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg transform scale-105'
+                              : 'bg-white/10 text-gray-300 hover:bg-white/20 hover:scale-105'
+                          }`}
+                          aria-pressed={data.experienceLevel === level.value}
+                        >
+                          <div className="font-medium">{level.label}</div>
+                          <div className="text-xs opacity-80">{level.description}</div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </>
@@ -474,6 +573,35 @@ const Calculator: React.FC = () => {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Workout Frequency */}
+                  <div className="space-y-3">
+                    <label htmlFor="workoutFrequency" className="block text-sm font-medium text-gray-300">Workout Frequency (days/week)</label>
+                    <input
+                      id="workoutFrequency"
+                      type="number"
+                      value={data.workoutFrequency}
+                      onChange={(e) => handleInputChange('workoutFrequency', parseInt(e.target.value) || 0)}
+                      className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                      min="0"
+                      max="7"
+                    />
+                  </div>
+
+                  {/* Cardio Minutes */}
+                  <div className="space-y-3">
+                    <label htmlFor="cardioMinutes" className="block text-sm font-medium text-gray-300">Weekly Cardio (minutes)</label>
+                    <input
+                      id="cardioMinutes"
+                      type="number"
+                      value={data.cardioMinutes}
+                      onChange={(e) => handleInputChange('cardioMinutes', parseInt(e.target.value) || 0)}
+                      className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                      min="0"
+                      max="1000"
+                      step="15"
+                    />
                   </div>
 
                   {/* Workout Intensity */}
@@ -578,6 +706,154 @@ const Calculator: React.FC = () => {
                       step="0.1"
                     />
                   </div>
+
+                  {/* Supplementation */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-300">Current Supplements</label>
+                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                      {supplementOptions.map((supplement) => (
+                        <button
+                          key={supplement}
+                          onClick={() => {
+                            const current = data.supplementation;
+                            if (current.includes(supplement)) {
+                              handleInputChange('supplementation', current.filter(s => s !== supplement));
+                            } else {
+                              handleInputChange('supplementation', [...current, supplement]);
+                            }
+                          }}
+                          className={`p-2 rounded-lg text-xs transition-all duration-300 ${
+                            data.supplementation.includes(supplement)
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                              : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                          }`}
+                        >
+                          {supplement}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Medical Conditions */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-300">Medical Conditions</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                      {medicalConditionOptions.map((condition) => (
+                        <button
+                          key={condition}
+                          onClick={() => {
+                            if (condition === 'None') {
+                              handleInputChange('medicalConditions', ['None']);
+                            } else {
+                              const current = data.medicalConditions.filter(c => c !== 'None');
+                              if (current.includes(condition)) {
+                                handleInputChange('medicalConditions', current.filter(c => c !== condition));
+                              } else {
+                                handleInputChange('medicalConditions', [...current, condition]);
+                              }
+                            }
+                          }}
+                          className={`p-2 rounded-lg text-xs transition-all duration-300 ${
+                            data.medicalConditions.includes(condition)
+                              ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white'
+                              : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                          }`}
+                        >
+                          {condition}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'goals' && (
+                <>
+                  {/* Primary Goal */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-300">Primary Goal</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {[
+                        { value: 'lose', label: 'Lose Weight', icon: TrendingUp, description: 'Fat loss focus' },
+                        { value: 'maintain', label: 'Maintain', icon: Target, description: 'Body recomposition' },
+                        { value: 'gain', label: 'Gain Weight', icon: Activity, description: 'Muscle building' }
+                      ].map((goal) => {
+                        const Icon = goal.icon;
+                        return (
+                          <button
+                            key={goal.value}
+                            onClick={() => handleInputChange('goal', goal.value)}
+                            className={`py-3 px-3 rounded-xl text-xs sm:text-sm transition-all duration-300 flex flex-col items-center space-y-1 will-change-transform ${
+                              data.goal === goal.value
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg transform scale-105'
+                                : 'bg-white/10 text-gray-300 hover:bg-white/20 hover:scale-105'
+                            }`}
+                            aria-pressed={data.goal === goal.value}
+                          >
+                            <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <span className="font-medium">{goal.label}</span>
+                            <span className="text-xs opacity-80">{goal.description}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Goal Timeframe */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-300">Goal Timeframe</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { value: '4weeks', label: '4 Weeks', description: 'Quick results' },
+                        { value: '8weeks', label: '8 Weeks', description: 'Balanced approach' },
+                        { value: '12weeks', label: '12 Weeks', description: 'Sustainable change' },
+                        { value: '24weeks', label: '24 Weeks', description: 'Long-term transformation' }
+                      ].map((timeframe) => (
+                        <button
+                          key={timeframe.value}
+                          onClick={() => handleInputChange('primaryGoalTimeframe', timeframe.value)}
+                          className={`p-3 rounded-xl text-center transition-all duration-300 will-change-transform ${
+                            data.primaryGoalTimeframe === timeframe.value
+                              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg transform scale-105'
+                              : 'bg-white/10 text-gray-300 hover:bg-white/20 hover:scale-105'
+                          }`}
+                          aria-pressed={data.primaryGoalTimeframe === timeframe.value}
+                        >
+                          <div className="font-medium text-xs sm:text-sm">{timeframe.label}</div>
+                          <div className="text-xs opacity-80">{timeframe.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Goal-specific recommendations */}
+                  <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-4">
+                    <h4 className="text-white font-semibold mb-2">Goal-Specific Guidance</h4>
+                    {data.goal === 'lose' && (
+                      <div className="space-y-2 text-sm text-gray-300">
+                        <p>• Focus on creating a moderate calorie deficit (300-500 calories)</p>
+                        <p>• Prioritize protein intake to preserve muscle mass</p>
+                        <p>• Include both cardio and resistance training</p>
+                        <p>• Consider intermittent fasting for metabolic flexibility</p>
+                      </div>
+                    )}
+                    {data.goal === 'gain' && (
+                      <div className="space-y-2 text-sm text-gray-300">
+                        <p>• Create a moderate calorie surplus (300-500 calories)</p>
+                        <p>• Focus on progressive overload in resistance training</p>
+                        <p>• Ensure adequate protein for muscle protein synthesis</p>
+                        <p>• Minimize excessive cardio to preserve energy for growth</p>
+                      </div>
+                    )}
+                    {data.goal === 'maintain' && (
+                      <div className="space-y-2 text-sm text-gray-300">
+                        <p>• Eat at maintenance calories for body recomposition</p>
+                        <p>• Balance cardio and resistance training</p>
+                        <p>• Focus on nutrient timing around workouts</p>
+                        <p>• Monitor body composition changes over scale weight</p>
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -586,7 +862,7 @@ const Calculator: React.FC = () => {
           {/* Results */}
           <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-2xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3">
-              <h3 className="text-lg sm:text-xl font-semibold text-white">Comprehensive Analysis</h3>
+              <h3 className="text-lg sm:text-xl font-semibold text-white">Advanced Analysis</h3>
               {results && (
                 <div className="relative">
                   <button
@@ -632,137 +908,167 @@ const Calculator: React.FC = () => {
             </div>
 
             {results ? (
-              <div className="space-y-4 sm:space-y-6">
-                {/* Main Metrics Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-2xl p-3 sm:p-4 hover:scale-105 transition-transform duration-300 will-change-transform">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400 flex-shrink-0" />
-                      <span className="text-xs sm:text-sm text-gray-300">BMR</span>
-                    </div>
-                    <div className="text-xl sm:text-2xl font-bold text-blue-400">{results.bmr}</div>
-                    <div className="text-xs text-gray-400">calories/day at rest</div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-2xl p-3 sm:p-4 hover:scale-105 transition-transform duration-300 will-change-transform">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 flex-shrink-0" />
-                      <span className="text-xs sm:text-sm text-gray-300">TDEE</span>
-                    </div>
-                    <div className="text-xl sm:text-2xl font-bold text-purple-400">{results.tdee}</div>
-                    <div className="text-xs text-gray-400">total daily expenditure</div>
-                  </div>
+              <>
+                {/* Results Tab Navigation */}
+                <div className="flex space-x-1 mb-6 p-1 bg-white/5 rounded-xl overflow-x-auto">
+                  <ResultsTabButton tab="overview" label="Overview" icon={CalcIcon} />
+                  <ResultsTabButton tab="composition" label="Body Comp" icon={Activity} />
+                  <ResultsTabButton tab="timing" label="Nutrition" icon={Clock} />
+                  <ResultsTabButton tab="progress" label="Progress" icon={TrendingUp} />
+                  <ResultsTabButton tab="insights" label="AI Insights" icon={Brain} />
                 </div>
 
-                {/* Goal Calories */}
-                <div className="bg-gradient-to-br from-green-500/20 to-emerald-600/20 border border-green-500/30 rounded-2xl p-4 sm:p-6 hover:scale-105 transition-transform duration-300 will-change-transform">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <Target className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 flex-shrink-0" />
-                      <span className="text-base sm:text-lg font-semibold text-white">Daily Target</span>
+                {/* Results Content */}
+                {activeResultsTab === 'overview' && (
+                  <div className="space-y-4 sm:space-y-6">
+                    {/* Main Metrics Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-2xl p-3 sm:p-4 hover:scale-105 transition-transform duration-300 will-change-transform">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400 flex-shrink-0" />
+                          <span className="text-xs sm:text-sm text-gray-300">BMR</span>
+                        </div>
+                        <div className="text-xl sm:text-2xl font-bold text-blue-400">{results.bmr}</div>
+                        <div className="text-xs text-gray-400">calories/day at rest</div>
+                      </div>
+                      
+                      <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-2xl p-3 sm:p-4 hover:scale-105 transition-transform duration-300 will-change-transform">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 flex-shrink-0" />
+                          <span className="text-xs sm:text-sm text-gray-300">TDEE</span>
+                        </div>
+                        <div className="text-xl sm:text-2xl font-bold text-purple-400">{results.tdee}</div>
+                        <div className="text-xs text-gray-400">total daily expenditure</div>
+                      </div>
                     </div>
-                    <div className="text-2xl sm:text-3xl font-bold text-green-400">{results.goalCalories}</div>
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-300 mb-2">
-                    For {data.goal === 'lose' ? 'weight loss' : data.goal === 'gain' ? 'weight gain' : 'maintenance'}
-                  </div>
-                  {results.weeklyWeightChange !== 0 && (
-                    <div className="text-xs sm:text-sm text-gray-400">
-                      Expected: {Math.abs(results.weeklyWeightChange)}kg/week {results.weeklyWeightChange > 0 ? 'gain' : 'loss'}
-                    </div>
-                  )}
-                </div>
 
-                {/* Advanced Metrics */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="bg-gradient-to-br from-orange-500/20 to-red-600/20 border border-orange-500/30 rounded-2xl p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-gray-300 mb-1">BMI</div>
-                    <div className={`text-lg sm:text-xl font-bold ${getBMICategory(results.bodyMassIndex).color}`}>
-                      {results.bodyMassIndex}
+                    {/* Goal Calories */}
+                    <div className="bg-gradient-to-br from-green-500/20 to-emerald-600/20 border border-green-500/30 rounded-2xl p-4 sm:p-6 hover:scale-105 transition-transform duration-300 will-change-transform">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <Target className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 flex-shrink-0" />
+                          <span className="text-base sm:text-lg font-semibold text-white">Daily Target</span>
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-bold text-green-400">{results.goalCalories}</div>
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-300 mb-2">
+                        For {data.goal === 'lose' ? 'weight loss' : data.goal === 'gain' ? 'weight gain' : 'maintenance'}
+                      </div>
+                      {results.weeklyWeightChange !== 0 && (
+                        <div className="text-xs sm:text-sm text-gray-400">
+                          Expected: {Math.abs(results.weeklyWeightChange)}kg/week {results.weeklyWeightChange > 0 ? 'gain' : 'loss'}
+                        </div>
+                      )}
                     </div>
-                    <div className={`text-xs ${getBMICategory(results.bodyMassIndex).color}`}>
-                      {getBMICategory(results.bodyMassIndex).category}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-teal-500/20 to-cyan-600/20 border border-teal-500/30 rounded-2xl p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-gray-300 mb-1">Metabolic Age</div>
-                    <div className="text-lg sm:text-xl font-bold text-teal-400">{results.metabolicAge}</div>
-                    <div className="text-xs text-gray-400">years</div>
-                  </div>
-                </div>
 
-                {/* Macro Breakdown */}
-                <div className="bg-gradient-to-br from-indigo-500/20 to-purple-600/20 border border-indigo-500/30 rounded-2xl p-4 sm:p-6">
-                  <h4 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-                    <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-400 flex-shrink-0" />
-                    <span>Optimized Macros</span>
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <div className="text-xl sm:text-2xl font-bold text-red-400">{results.protein}g</div>
-                      <div className="text-xs sm:text-sm text-gray-300">Protein</div>
-                      <div className="text-xs text-gray-400">{Math.round((results.protein * 4 / results.goalCalories) * 100)}%</div>
+                    {/* Advanced Metrics */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div className="bg-gradient-to-br from-orange-500/20 to-red-600/20 border border-orange-500/30 rounded-2xl p-3 sm:p-4">
+                        <div className="text-xs sm:text-sm text-gray-300 mb-1">BMI</div>
+                        <div className={`text-lg sm:text-xl font-bold ${getBMICategory(results.bodyMassIndex).color}`}>
+                          {results.bodyMassIndex}
+                        </div>
+                        <div className={`text-xs ${getBMICategory(results.bodyMassIndex).color}`}>
+                          {getBMICategory(results.bodyMassIndex).category}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gradient-to-br from-teal-500/20 to-cyan-600/20 border border-teal-500/30 rounded-2xl p-3 sm:p-4">
+                        <div className="text-xs sm:text-sm text-gray-300 mb-1">Metabolic Age</div>
+                        <div className="text-lg sm:text-xl font-bold text-teal-400">{results.metabolicAge}</div>
+                        <div className="text-xs text-gray-400">years</div>
+                      </div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-xl sm:text-2xl font-bold text-yellow-400">{results.carbs}g</div>
-                      <div className="text-xs sm:text-sm text-gray-300">Carbs</div>
-                      <div className="text-xs text-gray-400">{Math.round((results.carbs * 4 / results.goalCalories) * 100)}%</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xl sm:text-2xl font-bold text-green-400">{results.fat}g</div>
-                      <div className="text-xs sm:text-sm text-gray-300">Fat</div>
-                      <div className="text-xs text-gray-400">{Math.round((results.fat * 9 / results.goalCalories) * 100)}%</div>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Lifestyle Impact */}
-                <div className="bg-gradient-to-br from-pink-500/20 to-rose-600/20 border border-pink-500/30 rounded-2xl p-4 sm:p-6">
-                  <h4 className="text-base sm:text-lg font-semibold text-white mb-4">Lifestyle Impact</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300 text-sm">Sleep Impact</span>
-                      <span className={`font-medium text-sm ${results.sleepMetabolismImpact >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {results.sleepMetabolismImpact >= 0 ? '+' : ''}{results.sleepMetabolismImpact}%
-                      </span>
+                    {/* Macro Breakdown */}
+                    <div className="bg-gradient-to-br from-indigo-500/20 to-purple-600/20 border border-indigo-500/30 rounded-2xl p-4 sm:p-6">
+                      <h4 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                        <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-400 flex-shrink-0" />
+                        <span>Optimized Macros</span>
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="text-center">
+                          <div className="text-xl sm:text-2xl font-bold text-red-400">{results.protein}g</div>
+                          <div className="text-xs sm:text-sm text-gray-300">Protein</div>
+                          <div className="text-xs text-gray-400">{Math.round((results.protein * 4 / results.goalCalories) * 100)}%</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xl sm:text-2xl font-bold text-yellow-400">{results.carbs}g</div>
+                          <div className="text-xs sm:text-sm text-gray-300">Carbs</div>
+                          <div className="text-xs text-gray-400">{Math.round((results.carbs * 4 / results.goalCalories) * 100)}%</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xl sm:text-2xl font-bold text-green-400">{results.fat}g</div>
+                          <div className="text-xs sm:text-sm text-gray-300">Fat</div>
+                          <div className="text-xs text-gray-400">{Math.round((results.fat * 9 / results.goalCalories) * 100)}%</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300 text-sm">Stress Impact</span>
-                      <span className={`font-medium text-sm ${results.stressMetabolismImpact >= 0 ? 'text-red-400' : 'text-green-400'}`}>
-                        {results.stressMetabolismImpact >= 0 ? '+' : ''}{results.stressMetabolismImpact}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300 text-sm">Hydration Needs</span>
-                      <span className="text-cyan-400 font-medium text-sm">{results.hydrationNeeds}L/day</span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Recommendations */}
-                {generateRecommendations().length > 0 && (
-                  <div className="bg-gradient-to-br from-yellow-500/20 to-orange-600/20 border border-yellow-500/30 rounded-2xl p-4 sm:p-6">
-                    <h4 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-                      <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400 flex-shrink-0" />
-                      <span>Personalized Recommendations</span>
-                    </h4>
-                    <ul className="space-y-2">
-                      {generateRecommendations().map((rec, index) => (
-                        <li key={index} className="flex items-start space-x-2 text-xs sm:text-sm text-gray-300">
-                          <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>{rec}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {/* Lifestyle Impact */}
+                    <div className="bg-gradient-to-br from-pink-500/20 to-rose-600/20 border border-pink-500/30 rounded-2xl p-4 sm:p-6">
+                      <h4 className="text-base sm:text-lg font-semibold text-white mb-4">Lifestyle Impact</h4>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-300 text-sm">Sleep Impact</span>
+                          <span className={`font-medium text-sm ${results.sleepMetabolismImpact >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {results.sleepMetabolismImpact >= 0 ? '+' : ''}{results.sleepMetabolismImpact}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-300 text-sm">Stress Impact</span>
+                          <span className={`font-medium text-sm ${results.stressMetabolismImpact >= 0 ? 'text-red-400' : 'text-green-400'}`}>
+                            {results.stressMetabolismImpact >= 0 ? '+' : ''}{results.stressMetabolismImpact}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-300 text-sm">Hydration Needs</span>
+                          <span className="text-cyan-400 font-medium text-sm">{results.hydrationNeeds}L/day</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recommendations */}
+                    {generateRecommendations().length > 0 && (
+                      <div className="bg-gradient-to-br from-yellow-500/20 to-orange-600/20 border border-yellow-500/30 rounded-2xl p-4 sm:p-6">
+                        <h4 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                          <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400 flex-shrink-0" />
+                          <span>Personalized Recommendations</span>
+                        </h4>
+                        <ul className="space-y-2">
+                          {generateRecommendations().map((rec, index) => (
+                            <li key={index} className="flex items-start space-x-2 text-xs sm:text-sm text-gray-300">
+                              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                              <span>{rec}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+
+                {activeResultsTab === 'composition' && (
+                  <BodyCompositionAnalyzer data={data} results={results} />
+                )}
+
+                {activeResultsTab === 'timing' && (
+                  <NutritionTiming data={data} results={results} />
+                )}
+
+                {activeResultsTab === 'progress' && (
+                  <ProgressTracker data={data} results={results} />
+                )}
+
+                {activeResultsTab === 'insights' && (
+                  <AdvancedMetrics data={data} results={results} />
+                )}
+              </>
             ) : (
               <div className="text-center text-gray-400 py-8 sm:py-12">
                 <CalcIcon className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 sm:mb-6 opacity-50" />
-                <p className="text-base sm:text-lg mb-2">Ready for Analysis</p>
-                <p className="text-xs sm:text-sm">Complete your information to see comprehensive results</p>
+                <p className="text-base sm:text-lg mb-2">Ready for Advanced Analysis</p>
+                <p className="text-xs sm:text-sm">Complete your information to see comprehensive results with AI insights</p>
               </div>
             )}
           </div>
