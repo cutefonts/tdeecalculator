@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calculator as CalcIcon, Download, RotateCcw, TrendingUp, Activity, Heart, Zap, Target, Brain, AlertCircle, CheckCircle, Info, FileText, Image, FileDown, Sparkles } from 'lucide-react';
+import { Calculator as CalcIcon, Download, RotateCcw, TrendingUp, Activity, Heart, Zap, Target, Brain, AlertCircle, CheckCircle, Info, FileText, Image, FileDown, Sparkles, Clock } from 'lucide-react';
 import { generatePDFReport, generateJPGReport, exportJSON, ExportData } from '../utils/exportUtils';
 import AdvancedMetrics from './AdvancedMetrics';
 import BodyCompositionAnalyzer from './BodyCompositionAnalyzer';
