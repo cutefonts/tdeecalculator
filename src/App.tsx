@@ -31,40 +31,45 @@ function App() {
   const [activeSection, setActiveSection] = useState('hero');
   const [currentPage, setCurrentPage] = useState('home');
 
-  // Memoize page change handler
+  // Memoize page change handler to prevent unnecessary re-renders
   const handlePageChange = useCallback((page: string) => {
-    setCurrentPage(page);
-  }, []);
-
-  useEffect(() => {
-    // Handle URL routing
-    const path = window.location.pathname;
-    const page = path.substring(1) || 'home';
-    setCurrentPage(page);
-
-    // Update URL when page changes
-    const handlePopState = () => {
-      const newPath = window.location.pathname;
-      const newPage = newPath.substring(1) || 'home';
-      setCurrentPage(newPage);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  useEffect(() => {
-    // Update URL without page reload
-    const url = currentPage === 'home' ? '/' : `/${currentPage}`;
-    if (window.location.pathname !== url) {
-      window.history.pushState({}, '', url);
+    // Prevent unnecessary state updates if page is the same
+    if (currentPage !== page) {
+      setCurrentPage(page);
+      // Update URL without causing refresh
+      const url = page === 'home' ? '/' : `/${page}`;
+      if (window.location.pathname !== url) {
+        window.history.pushState({ page }, '', url);
+      }
     }
   }, [currentPage]);
 
   useEffect(() => {
+    // Handle initial URL routing without causing refresh
+    const path = window.location.pathname;
+    const page = path.substring(1) || 'home';
+    if (currentPage !== page) {
+      setCurrentPage(page);
+    }
+
+    // Handle browser back/forward navigation
+    const handlePopState = (event: PopStateEvent) => {
+      const newPath = window.location.pathname;
+      const newPage = newPath.substring(1) || 'home';
+      if (currentPage !== newPage) {
+        setCurrentPage(newPage);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []); // Remove currentPage dependency to prevent refresh
+
+  useEffect(() => {
+    // Only handle scroll tracking for home page
+    if (currentPage !== 'home') return;
+    
     const handleScroll = () => {
-      if (currentPage !== 'home') return;
-      
       const sections = ['hero', 'calculator', 'features', 'comparison', 'how-it-works', 'faq'];
       const scrollPosition = window.scrollY + 100;
 
@@ -75,7 +80,9 @@ function App() {
           const offsetBottom = offsetTop + element.offsetHeight;
 
           if (scrollPosition >= offsetTop && scrollPosition < offsetBottom) {
-            setActiveSection(section);
+            if (activeSection !== section) {
+              setActiveSection(section);
+            }
             break;
           }
         }
@@ -96,7 +103,7 @@ function App() {
 
     window.addEventListener('scroll', throttledHandleScroll, { passive: true });
     return () => window.removeEventListener('scroll', throttledHandleScroll);
-  }, [currentPage]);
+  }, [currentPage, activeSection]);
 
   const getSEOData = useCallback(() => {
     const baseUrl = 'https://calculatortdee.app';
